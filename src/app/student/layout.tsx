@@ -51,6 +51,7 @@ export default async function StudentLayout({
       <Sidebar
         sectionLabel="STUDENT"
         navItems={[
+          { label: 'My Profile', href: '/student/profile', icon: '👤' },
           { label: 'Dashboard', href: '/student/dashboard', icon: '▦' },
           { label: 'Browse Courses', href: '/student/courses', icon: '📚' },
           { label: 'My Grades', href: '/student/grades', icon: '📊' },
