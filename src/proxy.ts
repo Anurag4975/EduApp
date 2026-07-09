@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// In-memory cache: userId -> { role: string; timestamp: number }
+const roleCache = new Map<string, { role: string; timestamp: number }>();
+const CACHE_TTL_MS = 60_000; // 1 minute – adjust as needed
+
 const roleRedirects: Record<string, string> = {
   super_admin: "/admin/dashboard",
   institution_admin: "/institution/dashboard",
@@ -14,7 +18,7 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Skip proxy for login page to avoid redirect loops
-  if (path === "/login"|| path.startsWith("/auth")) {
+  if (path === "/login" || path.startsWith("/auth")) {
     return NextResponse.next();
   }
 
@@ -57,13 +61,28 @@ export async function proxy(request: NextRequest) {
 
   // Logged in but accessing wrong role's route
   if (user && protectedPrefixes.some((p) => path.startsWith(p))) {
-    const { data: profile } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    let role: string | undefined;
 
-    const correctBase = roleRedirects[profile?.role];
+    // Check cache
+    const cached = roleCache.get(user.id);
+    const now = Date.now();
+    if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+      role = cached.role;
+    } else {
+      // Cache miss – fetch from database
+      const { data: profile } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      role = profile?.role;
+      if (role) {
+        roleCache.set(user.id, { role, timestamp: now });
+      }
+    }
+
+    const correctBase = role ? roleRedirects[role] : undefined;
     const isOnWrongRoute =
       !correctBase ||
       !path.startsWith(correctBase.split("/").slice(0, 2).join("/"));

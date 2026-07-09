@@ -55,6 +55,7 @@ export default async function InstitutionLayout({
           { label: 'Teachers', href: '/institution/teachers', icon: '👨‍🏫' },
           { label: 'Students', href: '/institution/students', icon: '🎓' },
           { label: 'Courses', href: '/institution/courses', icon: '📚' },
+          { label: 'Groups', href: '/institution/groups', icon: '👥' },
           { label: 'Settings', href: '/institution/settings', icon: '⚙️' },
           { label: 'Calendar', href: '/calendar', icon: '📅' },
         ]}
