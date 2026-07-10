@@ -18,6 +18,19 @@ interface Module {
   lessons: Lesson[]
 }
 
+interface CoursePageTabsProps {
+  courseId: string
+  modules: Module[]
+  completedLessonIds: string[]
+  assignments: any[]
+  scaleLabel: string
+  quizzes: any[]
+  assignmentCount: number
+  quizCount: number
+  studentEmail: string
+  studentName: string
+}
+
 export default function CoursePageTabs({
   courseId,
   modules,
@@ -27,16 +40,9 @@ export default function CoursePageTabs({
   quizzes,
   assignmentCount,
   quizCount,
-}: {
-  courseId: string
-  modules: Module[]
-  completedLessonIds: string[]
-  assignments: any[]
-  scaleLabel: string
-  quizzes: any[]
-  assignmentCount: number
-  quizCount: number
-}) {
+  studentEmail,
+  studentName,
+}: CoursePageTabsProps) {
   const [activeTab, setActiveTab] = useState<'content' | 'assignments' | 'quizzes'>('content')
 
   const tabs = [
@@ -48,7 +54,15 @@ export default function CoursePageTabs({
   return (
     <div>
       {/* Tab Bar */}
-      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #f3f4f6', marginBottom: '20px', overflowX: 'auto' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: '4px',
+          borderBottom: '1px solid #f3f4f6',
+          marginBottom: '20px',
+          overflowX: 'auto',
+        }}
+      >
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -82,6 +96,8 @@ export default function CoursePageTabs({
             modules={modules}
             courseId={courseId}
             completedLessonIds={completedLessonIds}
+            studentEmail={studentEmail}
+            studentName={studentName}
           />
         )
       )}

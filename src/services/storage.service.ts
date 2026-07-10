@@ -26,7 +26,7 @@ export const StorageService = {
   },
 
   // Generate a temporary signed URL to view/download a file (expires in 1 hour by default)
-  async getSignedUrl(key: string, expiresInSeconds = 3600): Promise<string | null> {
+  async getSignedUrl(key: string, expiresInSeconds = 900): Promise<string | null> {
     try {
       const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,

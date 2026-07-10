@@ -51,6 +51,27 @@ export const UserService = {
     return data;
   },
 
+  // NEW: Get users by role with pagination (returns only columns needed for listing)
+  async getByRolePaginated(
+    tenantId: string,
+    role: UserRole,
+    start: number,
+    end: number
+  ): Promise<Pick<User, 'id' | 'full_name' | 'email' | 'is_active' | 'created_at'>[]> {
+    const supabase = await createServerSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, full_name, email, is_active, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("role", role)
+      .order("created_at", { ascending: false })
+      .range(start, end);
+
+    if (error) return [];
+    return data ?? [];
+  },
+
   // Get all users across platform (super admin only)
   async getAll(): Promise<User[]> {
     const supabase = await createServerSupabaseClient();
@@ -66,30 +87,30 @@ export const UserService = {
 
   // Invite new user to a tenant
   async invite(data: {
-  email: string
-  full_name: string
-  role: UserRole
-  tenant_id: string | null
-}): Promise<{ success: boolean; error?: string }> {
-  const supabaseAdmin = createAdminSupabaseClient()
+    email: string;
+    full_name: string;
+    role: UserRole;
+    tenant_id: string | null;
+  }): Promise<{ success: boolean; error?: string }> {
+    const supabaseAdmin = createAdminSupabaseClient();
 
-  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-    data.email,
-    {
-      data: {
-        full_name: data.full_name,
-        role: data.role,
-        tenant_id: data.tenant_id,
-      },
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      data.email,
+      {
+        data: {
+          full_name: data.full_name,
+          role: data.role,
+          tenant_id: data.tenant_id,
+        },
+      }
+    );
+
+    if (inviteError) {
+      return { success: false, error: inviteError.message };
     }
-  )
 
-  if (inviteError) {
-    return { success: false, error: inviteError.message }
-  }
-
-  return { success: true }
-},
+    return { success: true };
+  },
 
   // Update user role
   async updateRole(userId: string, role: UserRole): Promise<boolean> {
