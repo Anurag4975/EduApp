@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import NotificationBell from '@/components/ui/NotificationBell'
 import CalendarPanel from '@/components/ui/CalendarPanel'
 import { EventService } from '@/services/event.service'
+import { GroupService } from '@/services/group.service'
 
 export default async function TeacherLayout({
   children,
@@ -34,13 +35,13 @@ export default async function TeacherLayout({
     .order('created_at', { ascending: false })
     .limit(20)
 
-  const events = profile?.tenant_id
-    ? await EventService.getUpcoming(profile.tenant_id, 20)
-    : []
-
-  const assignmentDueDates = profile?.tenant_id
-    ? await EventService.getAssignmentDueDates(profile.tenant_id)
-    : []
+  const [events, assignmentDueDates, groups] = await Promise.all([
+    profile?.tenant_id
+      ? EventService.getUpcomingForUser(user.id, profile.tenant_id, 'teacher', 20)
+      : [],
+    profile?.tenant_id ? EventService.getAssignmentDueDates(profile.tenant_id) : [],
+    profile?.tenant_id ? GroupService.getByTenant(profile.tenant_id) : [],
+  ])
 
   const allEvents = [...events, ...assignmentDueDates].sort(
     (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
@@ -53,6 +54,7 @@ export default async function TeacherLayout({
         navItems={[
           { label: 'Dashboard', href: '/teacher/dashboard', icon: '▦' },
           { label: 'My Courses', href: '/teacher/courses', icon: '📚' },
+          { label: 'My Profile', href: '/teacher/profile', icon: '👤' },
           { label: 'Calendar', href: '/calendar', icon: '📅' },
         ]}
       />
@@ -61,6 +63,7 @@ export default async function TeacherLayout({
           <CalendarPanel
             events={allEvents}
             canCreate={true}
+            groups={groups}
           />
           <NotificationBell
             initialCount={unreadCount ?? 0}

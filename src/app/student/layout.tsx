@@ -4,6 +4,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import NotificationBell from '@/components/ui/NotificationBell'
 import CalendarPanel from '@/components/ui/CalendarPanel'
 import { EventService } from '@/services/event.service'
+import { GroupService } from '@/services/group.service'
 
 export default async function StudentLayout({
   children,
@@ -34,13 +35,12 @@ export default async function StudentLayout({
     .order('created_at', { ascending: false })
     .limit(20)
 
-  const events = profile?.tenant_id
-    ? await EventService.getUpcoming(profile.tenant_id, 20)
-    : []
-
-  const assignmentDueDates = profile?.tenant_id
-    ? await EventService.getAssignmentDueDates(profile.tenant_id)
-    : []
+  const [events, assignmentDueDates] = await Promise.all([
+    profile?.tenant_id
+      ? EventService.getUpcomingForUser(user.id, profile.tenant_id, 'student', 20)
+      : [],
+    profile?.tenant_id ? EventService.getAssignmentDueDates(profile.tenant_id) : [],
+  ])
 
   const allEvents = [...events, ...assignmentDueDates].sort(
     (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
@@ -51,11 +51,10 @@ export default async function StudentLayout({
       <Sidebar
         sectionLabel="STUDENT"
         navItems={[
-          { label: 'My Profile', href: '/student/profile', icon: '👤' },
           { label: 'Dashboard', href: '/student/dashboard', icon: '▦' },
           { label: 'Browse Courses', href: '/student/courses', icon: '📚' },
           { label: 'My Grades', href: '/student/grades', icon: '📊' },
-          { label: 'Attendance', href: '/student/attendance', icon: '📋' },
+          { label: 'My Profile', href: '/student/profile', icon: '👤' },
           { label: 'Calendar', href: '/calendar', icon: '📅' },
         ]}
       />
@@ -64,6 +63,7 @@ export default async function StudentLayout({
           <CalendarPanel
             events={allEvents}
             canCreate={false}
+            groups={[]}
           />
           <NotificationBell
             initialCount={unreadCount ?? 0}

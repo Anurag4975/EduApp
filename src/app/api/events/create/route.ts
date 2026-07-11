@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { EventService } from '@/services/event.service'
 import { NotificationService } from '@/services/notification.service'
-import { CourseService } from '@/services/course.service'
 
 export async function POST(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Institution not found' }, { status: 400 })
   }
 
-  const { title, description, type, startDate, endDate } = await request.json()
+  const { title, description, type, startDate, endDate, targetType, targetGroupId } = await request.json()
 
   if (!title || !startDate) {
     return NextResponse.json({ error: 'Title and start date required' }, { status: 400 })
@@ -34,27 +33,56 @@ export async function POST(request: NextRequest) {
     start_date: startDate,
     end_date: endDate || undefined,
     visible_to: 'all',
+    target_type: targetType ?? 'all',
+    target_group_id: targetType === 'group' ? targetGroupId : undefined,
   })
 
   if (!event) {
     return NextResponse.json({ error: 'Failed to create event' }, { status: 500 })
   }
 
-  // Get all users in this tenant to notify
-  const { data: tenantUsers } = await supabase
-    .from('users')
-    .select('id')
-    .eq('tenant_id', profile.tenant_id)
-    .neq('id', user.id)
+  // Notify the right users based on target_type
+  let userIds: string[] = []
 
-  if (tenantUsers && tenantUsers.length > 0) {
+  if (targetType === 'group' && targetGroupId) {
+    // Only notify students in that group
+    const { data: members } = await supabase
+      .from('group_members')
+      .select('student_id')
+      .eq('group_id', targetGroupId)
+    userIds = members?.map((m) => m.student_id) ?? []
+  } else if (targetType === 'teachers_only') {
+    const { data: teachers } = await supabase
+      .from('users')
+      .select('id')
+      .eq('tenant_id', profile.tenant_id)
+      .eq('role', 'teacher')
+    userIds = teachers?.map((t) => t.id) ?? []
+  } else if (targetType === 'students_only') {
+    const { data: students } = await supabase
+      .from('users')
+      .select('id')
+      .eq('tenant_id', profile.tenant_id)
+      .eq('role', 'student')
+    userIds = students?.map((s) => s.id) ?? []
+  } else {
+    // all — notify everyone except the creator
+    const { data: everyone } = await supabase
+      .from('users')
+      .select('id')
+      .eq('tenant_id', profile.tenant_id)
+      .neq('id', user.id)
+    userIds = everyone?.map((u) => u.id) ?? []
+  }
+
+  if (userIds.length > 0) {
     await NotificationService.createBulk({
       tenant_id: profile.tenant_id,
-      user_ids: tenantUsers.map((u) => u.id),
+      user_ids: userIds.filter((id) => id !== user.id),
       title: `New event: ${title}`,
       message: `${profile.full_name} posted a ${type} on ${new Date(startDate).toLocaleDateString()}`,
       type: 'general',
-      link: null,
+      link: '/calendar',
       metadata: { eventId: event.id, eventType: type },
     })
   }

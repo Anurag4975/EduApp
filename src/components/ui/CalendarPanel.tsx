@@ -81,9 +81,11 @@ function groupByDate(events: CalendarEvent[]) {
 export default function CalendarPanel({
   events: initialEvents,
   canCreate,
+  groups = [],
 }: {
   events: CalendarEvent[]
   canCreate: boolean
+  groups?: { id: string; name: string }[]
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -99,6 +101,8 @@ export default function CalendarPanel({
   const [endDate, setEndDate] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [targetType, setTargetType] = useState<'all' | 'teachers_only' | 'students_only' | 'group'>('all')
+  const [targetGroupId, setTargetGroupId] = useState('')
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -134,42 +138,44 @@ export default function CalendarPanel({
   const grouped = groupByDate(upcomingEvents)
 
   async function handleSave() {
-    if (!title.trim() || !startDate) {
-      setError('Title and start date are required.')
-      return
-    }
-    setSaving(true)
-    setError('')
-
-    const res = await fetch('/api/events/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description, type, startDate, endDate }),
-    })
-
-    const data = await res.json()
-
-    if (!res.ok || !data.success) {
-      setError(data.error ?? 'Failed to create event.')
-      setSaving(false)
-      return
-    }
-
-    // Add new event to local state
-    setEvents((prev) => [...prev, data.event].sort(
-      (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-    ))
-
-    // Reset form
-    setTitle('')
-    setDescription('')
-    setType('announcement')
-    setStartDate('')
-    setEndDate('')
-    setShowForm(false)
-    setSaving(false)
-    router.refresh()
+  if (!title.trim() || !startDate) {
+    setError('Title and start date are required.')
+    return
   }
+  if (targetType === 'group' && !targetGroupId) {
+    setError('Please select a group.')
+    return
+  }
+  setSaving(true)
+  setError('')
+
+  const res = await fetch('/api/events/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description, type, startDate, endDate, targetType, targetGroupId }),
+  })
+
+  const data = await res.json()
+  if (!res.ok || !data.success) {
+    setError(data.error ?? 'Failed to create event.')
+    setSaving(false)
+    return
+  }
+
+  setEvents((prev) => [...prev, data.event].sort(
+    (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+  ))
+  setTitle('')
+  setDescription('')
+  setType('announcement')
+  setStartDate('')
+  setEndDate('')
+  setTargetType('all')
+  setTargetGroupId('')
+  setShowForm(false)
+  setSaving(false)
+  router.refresh()
+}
 
   return (
     <>
@@ -318,155 +324,125 @@ export default function CalendarPanel({
 
         {/* Create Event Form */}
         {showForm ? (
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+  <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-            {/* Event Type Pills */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '8px' }}>
-                Event Type
-              </label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {(['announcement', 'exam', 'class', 'holiday', 'other'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setType(t)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      border: '1.5px solid',
-                      borderColor: type === t ? typeColor(t) : '#e5e7eb',
-                      backgroundColor: type === t ? typeColor(t) : '#ffffff',
-                      color: type === t ? '#ffffff' : '#6b7280',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                    }}
-                  >
-                    {typeIcon(t)} {t}
-                  </button>
-                ))}
-              </div>
-            </div>
+    {/* Event Type Pills */}
+    <div>
+      <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '8px' }}>
+        Event Type
+      </label>
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        {(['announcement', 'exam', 'class', 'holiday', 'other'] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setType(t)}
+            style={{
+              padding: '6px 12px', borderRadius: '20px', border: '1.5px solid',
+              borderColor: type === t ? typeColor(t) : '#e5e7eb',
+              backgroundColor: type === t ? typeColor(t) : '#ffffff',
+              color: type === t ? '#ffffff' : '#6b7280',
+              fontSize: '12px', fontWeight: '600', cursor: 'pointer', textTransform: 'capitalize',
+            }}
+          >
+            {typeIcon(t)} {t}
+          </button>
+        ))}
+      </div>
+    </div>
 
-            {/* Title */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>
-                Title *
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Mid-term Exam"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  fontSize: '14px',
-                  border: '1.5px solid #e5e7eb',
-                  borderRadius: '8px',
-                  outline: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#111827',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+    {/* Title */}
+    <div>
+      <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>Title *</label>
+      <input
+        type="text" placeholder="e.g. Mid-term Exam" value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        style={{ width: '100%', padding: '9px 12px', fontSize: '14px', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none', backgroundColor: '#ffffff', color: '#111827', boxSizing: 'border-box' }}
+      />
+    </div>
 
-            {/* Description */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>
-                Description
-              </label>
-              <textarea
-                placeholder="Details about this event..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  fontSize: '14px',
-                  border: '1.5px solid #e5e7eb',
-                  borderRadius: '8px',
-                  outline: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#111827',
-                  boxSizing: 'border-box',
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                }}
-              />
-            </div>
+    {/* Description */}
+    <div>
+      <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>Description</label>
+      <textarea
+        placeholder="Details about this event..." value={description}
+        onChange={(e) => setDescription(e.target.value)} rows={2}
+        style={{ width: '100%', padding: '9px 12px', fontSize: '14px', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none', backgroundColor: '#ffffff', color: '#111827', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+      />
+    </div>
 
-            {/* Start Date */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>
-                Start Date & Time *
-              </label>
-              <input
-                type="datetime-local"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  fontSize: '14px',
-                  border: '1.5px solid #e5e7eb',
-                  borderRadius: '8px',
-                  outline: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#111827',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+    {/* Start Date */}
+    <div>
+      <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>Start Date & Time *</label>
+      <input
+        type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+        style={{ width: '100%', padding: '9px 12px', fontSize: '14px', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none', backgroundColor: '#ffffff', color: '#111827', boxSizing: 'border-box' }}
+      />
+    </div>
 
-            {/* End Date */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>
-                End Date & Time (optional)
-              </label>
-              <input
-                type="datetime-local"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  fontSize: '14px',
-                  border: '1.5px solid #e5e7eb',
-                  borderRadius: '8px',
-                  outline: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#111827',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+    {/* End Date */}
+    <div>
+      <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '6px' }}>End Date & Time (optional)</label>
+      <input
+        type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+        style={{ width: '100%', padding: '9px 12px', fontSize: '14px', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none', backgroundColor: '#ffffff', color: '#111827', boxSizing: 'border-box' }}
+      />
+    </div>
 
-            {error && (
-              <p style={{ fontSize: '13px', color: '#dc2626', margin: 0 }}>{error}</p>
-            )}
+    {/* Target Audience */}
+    <div>
+      <label style={{ fontSize: '12px', fontWeight: '600', color: '#4b5563', display: 'block', marginBottom: '8px' }}>
+        Who can see this?
+      </label>
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        {([
+          { value: 'all', label: '👥 Everyone' },
+          { value: 'teachers_only', label: '👨‍🏫 Teachers only' },
+          { value: 'students_only', label: '🎓 Students only' },
+          { value: 'group', label: '🏷️ Specific group' },
+        ] as const).map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => setTargetType(opt.value)}
+            style={{
+              padding: '6px 12px', borderRadius: '20px', border: '1.5px solid',
+              borderColor: targetType === opt.value ? '#6366f1' : '#e5e7eb',
+              backgroundColor: targetType === opt.value ? '#6366f1' : '#ffffff',
+              color: targetType === opt.value ? '#ffffff' : '#6b7280',
+              fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '11px',
-                backgroundColor: '#6366f1',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                opacity: saving ? 0.7 : 1,
-              }}
-            >
-              {saving ? 'Saving...' : 'Create Event'}
-            </button>
-          </div>
+      {/* Group selector */}
+      {targetType === 'group' && (
+        <div style={{ marginTop: '10px' }}>
+          <select
+            value={targetGroupId}
+            onChange={(e) => setTargetGroupId(e.target.value)}
+            style={{ width: '100%', padding: '9px 12px', fontSize: '14px', border: '1.5px solid #e5e7eb', borderRadius: '8px', outline: 'none', backgroundColor: '#ffffff', color: '#111827', boxSizing: 'border-box' }}
+          >
+            <option value="">Select a group...</option>
+            {groups.map((g: any) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+
+    {error && <p style={{ fontSize: '13px', color: '#dc2626', margin: 0 }}>{error}</p>}
+
+    <button
+      onClick={handleSave}
+      disabled={saving}
+      style={{ padding: '11px', backgroundColor: '#6366f1', color: '#fff', border: 'none', borderRadius: '8px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: '600', opacity: saving ? 0.7 : 1 }}
+    >
+      {saving ? 'Saving...' : 'Create Event'}
+    </button>
+  </div>
         ) : (
           /* Events List */
           <div style={{ flex: 1, overflowY: 'auto' }}>
