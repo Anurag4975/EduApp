@@ -53,6 +53,7 @@ export default async function StudentLayout({
         navItems={[
           { label: 'Dashboard', href: '/student/dashboard', icon: '▦' },
           { label: 'Browse Courses', href: '/student/courses', icon: '📚' },
+          { label: 'Attendance', href: '/student/attendance', icon: '📋' },
           { label: 'My Grades', href: '/student/grades', icon: '📊' },
           { label: 'My Profile', href: '/student/profile', icon: '👤' },
           { label: 'Calendar', href: '/calendar', icon: '📅' },
