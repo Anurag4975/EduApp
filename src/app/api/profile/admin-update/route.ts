@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
-// Validation schema
+// Define validation schema
 const StudentProfileSchema = z.object({
   studentId: z.string().uuid(),
   phone: z.string().optional().nullable(),
@@ -27,32 +27,13 @@ const StudentProfileSchema = z.object({
   previousGrade: z.string().optional().nullable(),
 })
 
-// Helper function for consistent error responses
-function errorResponse(message: string, status: number, details?: any) {
-  return NextResponse.json(
-    { 
-      error: message,
-      success: false,
-      ...(details && { details }),
-      timestamp: new Date().toISOString()
-    },
-    { 
-      status,
-      headers: {
-        'Cache-Control': 'no-store'
-      }
-    }
-  )
-}
-
 export async function POST(request: NextRequest) {
   try {
     // 1. Authenticate user
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
     if (!user) {
-      return errorResponse('Not authenticated', 401)
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
     // 2. Get and validate admin profile
@@ -62,23 +43,21 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
+    // ✅ Null check for adminProfile
     if (!adminProfile) {
-      return errorResponse('Admin profile not found', 404)
+      return NextResponse.json(
+        { error: 'Admin profile not found' },
+        { status: 404 }
+      )
     }
 
     // 3. Check authorization
-    if (!['institution_admin', 'super_admin'].includes(adminProfile.role)) {
-      return errorResponse('Not authorized', 403)
+    if (!['institution_admin', 'super_admin'].includes(adminProfile.role ?? '')) {
+      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
     // 4. Parse and validate request body
-    let body: any
-    try {
-      body = await request.json()
-    } catch {
-      return errorResponse('Invalid JSON in request body', 400)
-    }
-
+    const body = await request.json()
     const validatedBody = StudentProfileSchema.parse(body)
 
     // 5. Verify student exists and belongs to admin's tenant
@@ -90,27 +69,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!student) {
-      return errorResponse('Student not found in your institution', 404)
+      return NextResponse.json(
+        { error: 'Student not found in your institution' },
+        { status: 404 }
+      )
     }
 
-    // 6. Additional role-based checks
-    if (adminProfile.role === 'institution_admin') {
-      // Institution admins can only manage their own institution's students
-      if (student.tenant_id !== adminProfile.tenant_id) {
-        return errorResponse('Cannot modify students from other institutions', 403)
-      }
-    }
-
-    // 7. Audit log
-    console.log(
-      `[${new Date().toISOString()}] Admin ${user.id} (${adminProfile.role}) updating student ${student.id}`,
-      {
-        tenant: adminProfile.tenant_id,
-        fields: Object.keys(validatedBody).filter(k => k !== 'studentId')
-      }
-    )
-
-    // 8. Use admin client to bypass RLS for this trusted server-side operation
+    // 6. Use admin client to bypass RLS for this trusted server-side operation
     const supabaseAdmin = createAdminSupabaseClient()
 
     const { data: result, error } = await supabaseAdmin
@@ -137,30 +102,29 @@ export async function POST(request: NextRequest) {
         emergency_relation: validatedBody.emergencyRelation ?? null,
         previous_school: validatedBody.previousSchool ?? null,
         previous_grade: validatedBody.previousGrade ?? null,
-      }, { 
-        onConflict: 'user_id' 
-      })
+      }, { onConflict: 'user_id' })
       .select()
       .single()
 
     if (error) {
-      console.error('UPSERT ERROR:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      })
-
+      console.error('UPSERT ERROR:', error)
+      
       // Handle specific database errors
-      if (error.code === '23505') { // Unique violation
-        return errorResponse('Student profile already exists', 409)
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'Student profile already exists' },
+          { status: 409 }
+        )
       }
       
-      if (error.code === '23503') { // Foreign key violation
-        return errorResponse('Invalid reference to student or tenant', 400)
+      if (error.code === '23503') {
+        return NextResponse.json(
+          { error: 'Invalid reference to student or tenant' },
+          { status: 400 }
+        )
       }
 
-      return errorResponse('Failed to update student profile', 500, error.message)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ 
@@ -169,22 +133,22 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (err: any) {
-    // Handle validation errors
+    // Handle validation errors from Zod
     if (err instanceof z.ZodError) {
       console.error('VALIDATION ERROR:', err.errors)
-      return errorResponse('Validation failed', 400, err.errors)
+      return NextResponse.json(
+        { 
+          error: 'Validation failed',
+          details: err.errors 
+        },
+        { status: 400 }
+      )
     }
 
-    // Handle unexpected errors
-    console.error('ROUTE ERROR:', {
-      message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-      cause: err.cause
-    })
-    
-    return errorResponse(
-      process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
-      500
+    console.error('ROUTE ERROR:', err)
+    return NextResponse.json(
+      { error: err.message ?? 'Internal server error' },
+      { status: 500 }
     )
   }
 }
