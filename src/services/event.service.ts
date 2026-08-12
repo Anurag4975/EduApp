@@ -150,6 +150,65 @@ export const EventService = {
       assignment_id: a.id,
     }))
   },
+  // Get fee due dates as events for a specific user
+async getFeeDueDates(userId: string, tenantId: string, role: string) {
+  const supabase = await createServerSupabaseClient()
+  const today = new Date().toISOString()
+
+  if (role === 'student') {
+    // Student sees their own pending/overdue fees
+    const { data, error } = await supabase
+      .from('fee_records')
+      .select('id, title, due_date, status')
+      .eq('student_id', userId)
+      .eq('tenant_id', tenantId)
+      .not('status', 'in', '("paid","waived")')
+      .gte('due_date', today)
+      .order('due_date', { ascending: true })
+
+    if (error) return []
+
+    return (data ?? []).map((f: any) => ({
+      id: `fee-${f.id}`,
+      title: `💰 ${f.title} due`,
+      description: `Fee payment due`,
+      type: 'fee_due',
+      start_date: `${f.due_date}T00:00:00.000Z`,
+      color: f.status === 'overdue' ? '#dc2626' : '#8b5cf6',
+      target_type: 'students_only',
+      is_fee: true,
+      fee_record_id: f.id,
+    }))
+  }
+
+  if (role === 'institution_admin') {
+    // Institution sees all upcoming fee due dates
+    const { data, error } = await supabase
+      .from('fee_records')
+      .select('id, title, due_date, status, users!fee_records_student_id_fkey(full_name)')
+      .eq('tenant_id', tenantId)
+      .not('status', 'in', '("paid","waived")')
+      .gte('due_date', today)
+      .order('due_date', { ascending: true })
+      .limit(30)
+
+    if (error) return []
+
+    return (data ?? []).map((f: any) => ({
+      id: `fee-${f.id}`,
+      title: `💰 ${f.title}`,
+      description: `${f.users?.full_name} — fee due`,
+      type: 'fee_due',
+      start_date: `${f.due_date}T00:00:00.000Z`,
+      color: '#8b5cf6',
+      target_type: 'all',
+      is_fee: true,
+      fee_record_id: f.id,
+    }))
+  }
+
+  return []
+},
 
   // Delete an event
   async delete(eventId: string) {

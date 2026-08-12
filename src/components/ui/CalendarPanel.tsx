@@ -24,6 +24,7 @@ function typeIcon(type: string) {
     case 'holiday': return '🎉'
     case 'announcement': return '📢'
     case 'assignment_due': return '⏰'
+    case 'fee_due': return '💰'
     default: return '📅'
   }
 }
@@ -36,6 +37,7 @@ function typeColor(type: string, color?: string | null) {
     case 'holiday': return '#16a34a'
     case 'announcement': return '#8b5cf6'
     case 'assignment_due': return '#f59e0b'
+    case 'fee_due': return '#8b5cf6'
     default: return '#6b7280'
   }
 }

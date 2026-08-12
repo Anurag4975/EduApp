@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { toggleLessonComplete } from '../actions'
 import SecureVideoPlayer from '@/components/ui/SecureVideoPlayer'
+import SecurePDFViewer from '@/components/ui/SecurePDFViewer'
 
 interface Lesson {
   id: string
@@ -17,7 +18,6 @@ interface Module {
   lessons: Lesson[]
 }
 
-// Fixed: Added studentEmail, studentName, and completedLessonIds to the props interface
 interface LessonViewerProps {
   modules: Module[]
   courseId: string
@@ -37,16 +37,53 @@ export default function LessonViewer({
   const [isPending, startTransition] = useTransition()
 
   return (
-    <div style={{ display: 'flex', gap: '24px', marginTop: '16px' }}>
-      
+    <div
+      style={{
+        display: 'flex',
+        gap: '24px',
+        marginTop: '16px',
+      }}
+    >
       {/* Sidebar Navigation */}
-      <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div
+        style={{
+          flex: '1',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}
+      >
         {modules.map((module) => (
-          <div key={module.id} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', backgroundColor: '#f9fafb' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>{module.title}</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div
+            key={module.id}
+            style={{
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              padding: '12px',
+              backgroundColor: '#f9fafb',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                color: '#374151',
+              }}
+            >
+              {module.title}
+            </h3>
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
               {module.lessons.map((lesson) => {
                 const isSelected = activeLesson?.id === lesson.id
+
                 return (
                   <button
                     key={lesson.id}
@@ -74,15 +111,27 @@ export default function LessonViewer({
         ))}
       </div>
 
-      {/* Primary Content Window */}
-      <div style={{ flex: '2', minWidth: '0' }}>
+      {/* Main Content */}
+      <div
+        style={{
+          flex: '2',
+          minWidth: '0',
+        }}
+      >
         {activeLesson ? (
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#111827' }}>
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '12px',
+                color: '#111827',
+              }}
+            >
               {activeLesson.title}
             </h2>
-            
-            {/* Fixed: Added fallback guard checking that content_url is valid, and supplied all required player props */}
+
+            {/* VIDEO */}
             {activeLesson.type === 'video' && activeLesson.content_url ? (
               <SecureVideoPlayer
                 src={activeLesson.content_url}
@@ -93,18 +142,88 @@ export default function LessonViewer({
                 completedLessonIds={completedLessonIds}
               />
             ) : activeLesson.type === 'video' ? (
-              <div style={{ padding: '40px', backgroundColor: '#f3f4f6', borderRadius: '12px', textAlign: 'center' }}>
-                <p style={{ color: '#9ca3af', fontSize: '14px' }}>Video URL is missing or unavailable for this lesson.</p>
+              <div
+                style={{
+                  padding: '40px',
+                  backgroundColor: '#f3f4f6',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                }}
+              >
+                <p
+                  style={{
+                    color: '#9ca3af',
+                    fontSize: '14px',
+                  }}
+                >
+                  Video URL is missing or unavailable for this lesson.
+                </p>
               </div>
+
+            /* DOCUMENT */
+            ) : activeLesson.type === 'document' && activeLesson.content_url ? (
+              <SecurePDFViewer
+                contentUrl={activeLesson.content_url}
+                title={activeLesson.title}
+              />
+            ) : activeLesson.type === 'document' ? (
+              <div
+                style={{
+                  padding: '40px',
+                  backgroundColor: '#f3f4f6',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                }}
+              >
+                <p
+                  style={{
+                    color: '#9ca3af',
+                    fontSize: '14px',
+                  }}
+                >
+                  PDF file is missing or unavailable for this lesson.
+                </p>
+              </div>
+
+            /* OTHER TYPES */
             ) : (
-              <div style={{ padding: '24px', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
-                <p style={{ fontSize: '14px', color: '#374151' }}>This lesson is a document/text assignment.</p>
+              <div
+                style={{
+                  padding: '24px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '14px',
+                    color: '#374151',
+                  }}
+                >
+                  Unsupported lesson type.
+                </p>
               </div>
             )}
           </div>
         ) : (
-          <div style={{ padding: '60px 40px', textAlign: 'center', border: '2px dashed #e5e7eb', borderRadius: '12px', color: '#9ca3af' }}>
-            <p style={{ fontSize: '14px', margin: 0 }}>Select a lesson from the panel to start learning.</p>
+          <div
+            style={{
+              padding: '60px 40px',
+              textAlign: 'center',
+              border: '2px dashed #e5e7eb',
+              borderRadius: '12px',
+              color: '#9ca3af',
+            }}
+          >
+            <p
+              style={{
+                fontSize: '14px',
+                margin: 0,
+              }}
+            >
+              Select a lesson from the panel to start learning.
+            </p>
           </div>
         )}
       </div>

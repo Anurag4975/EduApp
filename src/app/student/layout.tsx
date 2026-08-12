@@ -35,16 +35,17 @@ export default async function StudentLayout({
     .order('created_at', { ascending: false })
     .limit(20)
 
-  const [events, assignmentDueDates] = await Promise.all([
-    profile?.tenant_id
-      ? EventService.getUpcomingForUser(user.id, profile.tenant_id, 'student', 20)
-      : [],
-    profile?.tenant_id ? EventService.getAssignmentDueDates(profile.tenant_id) : [],
-  ])
+  const [events, assignmentDueDates, feeDueDates] = await Promise.all([
+  profile?.tenant_id
+    ? EventService.getUpcomingForUser(user.id, profile.tenant_id, 'student', 20)
+    : [],
+  profile?.tenant_id ? EventService.getAssignmentDueDates(profile.tenant_id) : [],
+  profile?.tenant_id ? EventService.getFeeDueDates(user.id, profile.tenant_id, 'student') : [],
+])
 
-  const allEvents = [...events, ...assignmentDueDates].sort(
-    (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-  )
+const allEvents = [...events, ...assignmentDueDates, ...feeDueDates].sort(
+  (a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+)
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
@@ -57,6 +58,7 @@ export default async function StudentLayout({
           { label: 'My Grades', href: '/student/grades', icon: '📊' },
           { label: 'My Profile', href: '/student/profile', icon: '👤' },
           { label: 'Calendar', href: '/calendar', icon: '📅' },
+          { label: 'My Fees', href: '/student/fees', icon: '💰' },
         ]}
       />
       <main style={{ marginLeft: '240px', flex: 1, padding: '32px', minWidth: 0, position: 'relative' }}>
