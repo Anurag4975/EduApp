@@ -36,7 +36,14 @@ interface Quiz {
   description: string | null
   duration_mins: number | null
   total_marks: number
-  quiz_questions?: { id: string }[]
+  quiz_questions: any[]
+  attempts: {
+    id: string
+    score: number | null
+    started_at: string
+    completed_at: string | null
+    users: { full_name: string; email: string }
+  }[]
 }
 
 interface EnrolledStudent {
@@ -91,7 +98,7 @@ export default function CourseBuilder({
 }) {
   const router = useRouter()
   const [showModuleForm, setShowModuleForm] = useState(false)
-  const [activeTab, setActiveTab] = useState<'content' | 'students' | 'attendance' | 'assignments' | 'quizzes'>('content')
+  const [activeTab, setActiveTab] = useState<'content' | 'students' | 'attendance' | 'assignments' | 'quizzes' | 'progress'>('content')
   const [moduleTitle, setModuleTitle] = useState('')
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null)
   const [lessonTitle, setLessonTitle] = useState('')
@@ -175,11 +182,6 @@ export default function CourseBuilder({
     router.refresh()
   }
 
-
-
-
-
-
   async function handleSaveAttendance() {
     setSavingAttendance(true)
     const today = new Date().toISOString().split('T')[0]
@@ -244,7 +246,7 @@ export default function CourseBuilder({
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '1px solid #f3f4f6', overflowX: 'auto' }}>
-        {(['content', 'students', 'attendance', 'assignments', 'quizzes'] as const).map((tab) => (
+        {(['content', 'students', 'attendance', 'assignments', 'quizzes', 'progress'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -259,7 +261,8 @@ export default function CourseBuilder({
               : tab === 'students' ? `Students (${enrolledStudents.length})`
               : tab === 'attendance' ? 'Attendance'
               : tab === 'assignments' ? `Assignments (${assignments.length})`
-              : `Quizzes (${quizzes.length})`}
+              : tab === 'quizzes' ? `Quizzes (${quizzes.length})`
+              : 'Progress'}
           </button>
         ))}
       </div>
@@ -542,9 +545,10 @@ export default function CourseBuilder({
         </div>
       )}
 
-     {activeTab === 'quizzes' && (
-  <QuizBuilder courseId={course.id} quizzes={quizzes} />
-)}
+      {/* Quizzes Tab */}
+      {activeTab === 'quizzes' && (
+        <QuizBuilder courseId={course.id} quizzes={quizzes} />
+      )}
 
       {/* Progress Tab */}
       {activeTab === 'progress' && (

@@ -19,14 +19,7 @@ interface LocalQuestion {
   marks: number
 }
 
-interface Quiz {
-  id: string
-  title: string
-  description: string | null
-  duration_mins: number | null
-  total_marks: number
-  quiz_questions: any[]
-}
+
 interface Quiz {
   id: string
   title: string

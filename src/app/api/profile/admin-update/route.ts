@@ -3,7 +3,6 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { z } from 'zod'
 
-// Define validation schema
 const StudentProfileSchema = z.object({
   studentId: z.string().uuid(),
   phone: z.string().optional().nullable(),
@@ -29,21 +28,18 @@ const StudentProfileSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Authenticate user
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // 2. Get and validate admin profile
     const { data: adminProfile } = await supabase
       .from('users')
       .select('tenant_id, role')
       .eq('id', user.id)
       .single()
 
-    // ✅ Null check for adminProfile
     if (!adminProfile) {
       return NextResponse.json(
         { error: 'Admin profile not found' },
@@ -51,16 +47,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. Check authorization
     if (!['institution_admin', 'super_admin'].includes(adminProfile.role ?? '')) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    // 4. Parse and validate request body
     const body = await request.json()
     const validatedBody = StudentProfileSchema.parse(body)
 
-    // 5. Verify student exists and belongs to admin's tenant
     const { data: student } = await supabase
       .from('users')
       .select('id, tenant_id')
@@ -75,7 +68,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 6. Use admin client to bypass RLS for this trusted server-side operation
     const supabaseAdmin = createAdminSupabaseClient()
 
     const { data: result, error } = await supabaseAdmin
@@ -109,7 +101,6 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('UPSERT ERROR:', error)
       
-      // Handle specific database errors
       if (error.code === '23505') {
         return NextResponse.json(
           { error: 'Student profile already exists' },
@@ -135,11 +126,11 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     // Handle validation errors from Zod
     if (err instanceof z.ZodError) {
-      console.error('VALIDATION ERROR:', err.errors)
+      console.error('VALIDATION ERROR:', err.issues)  // ✅ FIXED
       return NextResponse.json(
         { 
           error: 'Validation failed',
-          details: err.errors 
+          details: err.issues  // ✅ FIXED
         },
         { status: 400 }
       )

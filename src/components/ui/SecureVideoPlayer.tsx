@@ -55,8 +55,9 @@ export default function SecureVideoPlayer({
   const [buffered, setBuffered] = useState(0)
   const [watermarkPos, setWatermarkPos] = useState({ top: '15%', left: '10%' })
 
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>()
-  const watermarkIntervalRef = useRef<NodeJS.Timeout>()
+  // ✅ FIXED: Added null as initial value and null to type
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const watermarkIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load notes
   useEffect(() => {
@@ -91,7 +92,10 @@ export default function SecureVideoPlayer({
       setWatermarkPos(positions[index])
     }, 8000)
 
-    return () => clearInterval(watermarkIntervalRef.current)
+    // ✅ FIXED: Added null check
+    return () => {
+      if (watermarkIntervalRef.current) clearInterval(watermarkIntervalRef.current)
+    }
   }, [])
 
   // Auto-pause on tab switch
@@ -107,33 +111,34 @@ export default function SecureVideoPlayer({
   }, [])
 
   // Disable right-click and keyboard shortcuts
-  useEffect(() => {
-    function handleContextMenu(e: MouseEvent) {
-      if (containerRef.current?.contains(e.target as Node)) {
-        e.preventDefault()
-      }
+ // Disable right-click and keyboard shortcuts
+useEffect(() => {
+  function handleContextMenu(e: MouseEvent) {
+    if (containerRef.current?.contains(e.target as Node)) {
+      e.preventDefault()
     }
+  }
 
-    function handleKeyDown(e: KeyboardEvent) {
-      if (!containerRef.current?.contains(document.activeElement) &&
-          document.activeElement !== document.body) return
+  function handleKeyDown(e: KeyboardEvent) {
+    if (!containerRef.current?.contains(document.activeElement) &&
+        document.activeElement !== document.body) return
 
-      const blocked = [
-        e.ctrlKey && e.key === 's',
-        e.ctrlKey && e.key === 'u',
-        e.ctrlKey && e.key === 'shift' && e.key === 'i',
-        e.key === 'PrintScreen',
-      ]
-      if (blocked.some(Boolean)) e.preventDefault()
-    }
+    const blocked = [
+      e.ctrlKey && e.key === 's',       // Ctrl+S (Save)
+      e.ctrlKey && e.key === 'u',       // Ctrl+U (View Source)
+      e.ctrlKey && e.shiftKey && e.key === 'I',  // Ctrl+Shift+I (DevTools)
+      e.key === 'PrintScreen',           // Print Screen
+    ]
+    if (blocked.some(Boolean)) e.preventDefault()
+  }
 
-    document.addEventListener('contextmenu', handleContextMenu)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [])
+  document.addEventListener('contextmenu', handleContextMenu)
+  document.addEventListener('keydown', handleKeyDown)
+  return () => {
+    document.removeEventListener('contextmenu', handleContextMenu)
+    document.removeEventListener('keydown', handleKeyDown)
+  }
+}, [])
 
   // Auto-hide controls
   function resetControlsTimeout() {

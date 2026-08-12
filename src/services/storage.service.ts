@@ -1,6 +1,6 @@
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { b2Client, BUCKET_NAME } from './b2-client'
+import { b2Client, BUCKET_NAME } from  '@/lib/storage/b2-client'
 
 export const StorageService = {
 
